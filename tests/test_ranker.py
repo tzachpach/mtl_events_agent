@@ -32,12 +32,23 @@ def test_keyword_scoring():
     assert ranked[0].title == "Free Improv Show"  # Should rank higher due to keywords
 
 def test_max_per_day():
-    base_time = datetime.now()
-    events = [
-        create_test_event(f"Event {i}", base_time + timedelta(hours=i))
-        for i in range(10)
-    ]
-    
+    test_date = datetime(2025, 1, 1, 10, 0, 0) # Fixed date and time
+    events = []
+    for i in range(10):
+        events.append(
+            Event(
+                title=f"Event {i}",
+                description="Test event",
+                start_dt=test_date + timedelta(minutes=i * 10), # Ensure events are on the same day but distinct times
+                end_dt=test_date + timedelta(minutes=i * 10, hours=1),
+                location="Montreal",
+                url="https://example.com",
+                source=EventSource.TOURISME_MTL,
+                source_id="test-1",
+                is_all_day=False,
+                popularity=0.5
+            )
+        )
     ranked = rank_and_filter(events)
     assert len(ranked) == 5  # MAX_PER_DAY
 

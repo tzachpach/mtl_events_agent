@@ -64,16 +64,25 @@ def test_process_separates_festivals():
     assert not any(c.is_all_day for c in curated)
 
 def test_process_daily_cap():
-    """Test that process respects daily event cap."""
-    base_time = datetime.now()
-    
-    # Create more than MAX_PER_DAY events for the same day
-    events = [
-        create_test_event(f"Event {i}", base_time + timedelta(hours=i))
-        for i in range(10)  # More than MAX_PER_DAY (5)
-    ]
-    
-    _, curated = process(events)
+    test_date = datetime(2025, 1, 1, 10, 0, 0) # Fixed date and time
+    events = []
+    for i in range(10):
+        events.append(
+            Event(
+                title=f"Event {i}",
+                description="Test event",
+                start_dt=test_date + timedelta(minutes=i * 10), # Ensure events are on the same day but distinct times
+                end_dt=test_date + timedelta(minutes=i * 10, hours=1),
+                location="Montreal",
+                url="https://example.com",
+                source=EventSource.TOURISME_MTL,
+                source_id="test-1",
+                is_all_day=False,
+                popularity=0.5
+            )
+        )
+    festivals, curated = process(events)
+    assert len(festivals) == 0
     assert len(curated) == 5  # Should be capped at MAX_PER_DAY
 
 def test_process_overlap_guardrail():

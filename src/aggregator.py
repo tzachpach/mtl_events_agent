@@ -6,9 +6,10 @@ from .ranker import rank_and_filter
 from .sources import (
     # get_eventbrite_events,  # Eventbrite disabled
     get_ticketmaster_events,
-    get_tourisme_events,
+    # get_tourisme_events,
     get_rss_events,
-    get_reddit_events
+    get_reddit_events,
+    get_city_events
 )
 
 def hash_title(title: str, date: datetime) -> str:
@@ -43,9 +44,10 @@ def pull_all() -> List[Event]:
     sources = [
         # get_eventbrite_events,
         get_ticketmaster_events,
-        get_tourisme_events,
+        # get_tourisme_events,
         get_rss_events,
-        get_reddit_events
+        get_reddit_events,
+        get_city_events
     ]
     
     for source in sources:

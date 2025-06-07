@@ -50,8 +50,25 @@ def test_get_ticketmaster_events(mock_env, mock_response):
     assert event.popularity is None
 
 def test_get_ticketmaster_events():
-    with patch.dict(os.environ, {"TICKETMASTER_API_KEY": "dummy"}):
-        mock_response = type('Response', (), {'json': lambda: {"_embedded": {"events": []}}, 'raise_for_status': lambda: None})
-        with patch('requests.get', return_value=mock_response):
-            events = ticketmaster.get_ticketmaster_events()
-            assert isinstance(events, list) 
+    mock_response_json = {
+        "_embedded": {
+            "events": [
+                {
+                    "name": "Test Event",
+                    "dates": {
+                        "start": {"dateTime": "2099-01-01T10:00:00Z"},
+                        "end": {"dateTime": "2099-01-01T12:00:00Z"}
+                    },
+                    "_embedded": {"venues": [{"name": "Test Venue"}]},
+                    "url": "http://test.ticketmaster.com",
+                    "id": "test-id-1"
+                }
+            ]
+        }
+    }
+    with patch.dict(os.environ, {"TICKETMASTER_KEY": "dummy_key"}), \
+         patch('requests.get', return_value=type('Response', (), {'json': lambda: mock_response_json, 'raise_for_status': lambda: None})):
+        events = ticketmaster.get_ticketmaster_events()
+        assert isinstance(events, list)
+        assert len(events) == 1
+        assert events[0].title == "Test Event" 

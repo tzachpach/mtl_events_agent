@@ -6,10 +6,10 @@ from enum import Enum
 class EventSource(Enum):
     TOURISME_MTL = "tourisme_mtl"
     EVENTBRITE = "eventbrite"
-    TICKETMASTER = "ticketmaster"
     MTL_BLOG = "mtl_blog"
     GAZETTE = "gazette"
     REDDIT = "reddit"
+    VILLE_MTL = "ville_mtl"
 
 @dataclass
 class Event:
