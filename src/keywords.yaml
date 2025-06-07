@@ -1,0 +1,17 @@
+# Keyword weights for event ranking (0.0 to 1.0)
+# Higher weights increase the likelihood of an event being selected
+improv: 1.0
+free: 0.8
+pay-what-you-can: 0.8
+spoken-word: 0.6
+trail: 0.4
+concert: 0.7
+festival: 0.7
+exhibition: 0.6
+workshop: 0.5
+food: 0.6
+art: 0.7
+music: 0.7
+theatre: 0.7
+dance: 0.6
+comedy: 0.7 
