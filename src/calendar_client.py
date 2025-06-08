@@ -5,6 +5,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from .models import Event
 import time
+import pytz
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
@@ -28,11 +29,11 @@ def event_to_calendar_event(event: Event) -> dict:
         'location': event.location,
         'start': {
             'dateTime' if not event.is_all_day else 'date': 
-                event.start_dt.isoformat() if not event.is_all_day else event.start_dt.date().isoformat()
+                event.start_dt.astimezone(pytz.utc).isoformat() if not event.is_all_day else event.start_dt.date().isoformat()
         },
         'end': {
             'dateTime' if not event.is_all_day else 'date': 
-                event.end_dt.isoformat() if not event.is_all_day else event.end_dt.date().isoformat()
+                event.end_dt.astimezone(pytz.utc).isoformat() if not event.is_all_day else event.end_dt.date().isoformat()
         },
         'extendedProperties': {
             'private': {

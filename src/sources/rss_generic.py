@@ -8,13 +8,6 @@ RSS_FEEDS = [
     ("https://montrealgazette.com/feed/", EventSource.GAZETTE),
 ]
 
-def parse_rss_datetime(dt_str: str) -> datetime:
-    # Try to parse RFC822/ISO8601
-    try:
-        return datetime(*feedparser._parse_date(dt_str)[:6])
-    except Exception:
-        return datetime.now()
-
 def get_rss_events() -> List[Event]:
     """
     Fetch events from configured RSS feeds.
@@ -25,7 +18,9 @@ def get_rss_events() -> List[Event]:
         feed = feedparser.parse(url)
         for entry in feed.entries:
             try:
-                start_dt = parse_rss_datetime(getattr(entry, 'published', getattr(entry, 'updated', '')))
+                # Use Event.parse_date for robust parsing and timezone awareness
+                dt_str = getattr(entry, 'published', getattr(entry, 'updated', ''))
+                start_dt = Event.parse_date(dt_str)
                 # Assume 2-hour event if not all-day
                 end_dt = start_dt + timedelta(hours=2)
                 event = Event(
