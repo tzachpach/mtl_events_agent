@@ -107,4 +107,7 @@ def process(events: List[Event]) -> Tuple[List[Event], List[Event]]:
     # Rank and filter curated events
     ranked_curated = rank_and_filter(curated)
     
+    # Apply absolute hard cap
+    ranked_curated = ranked_curated[:300]
+    
     return festivals, ranked_curated 

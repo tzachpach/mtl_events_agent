@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from .models import Event
+import time
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
@@ -55,9 +56,9 @@ def sync(events: List[Event]) -> None:
         
     service = get_calendar_service()
     
-    # Calculate date range (now to 35 days from now)
+    # Calculate date range (now to 1 year from now)
     now = datetime.utcnow()
-    future = now + timedelta(days=35)
+    future = now + timedelta(days=365)
     
     # Get existing events within date range
     existing_events = {}
@@ -111,6 +112,7 @@ def sync(events: List[Event]) -> None:
     # Execute batch operations
     try:
         batch.execute()
+        time.sleep(0.05) # Add small sleep to dodge 429
     except Exception as e:
         print(f"Error syncing events to calendar: {e}")
         raise 
