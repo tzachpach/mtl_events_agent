@@ -5,7 +5,7 @@ import src.aggregator as aggregator
 import src.calendar_client as calendar_client
 
 T0 = time.time()
-def log(msg: str): print(f"[{time.time()-T0:5.1f}s] {msg}", flush=True)
+def log(msg: str): print(f"[{time.time()-T0:6.1f}s] {msg}", flush=True)
 
 @click.command()
 def cli():
@@ -14,7 +14,7 @@ def cli():
         # Pull events from all sources
         log("Fetching events from all sources")
         events = aggregator.pull_all()
-        log(f"Fetched {len(events)} total events from all sources")
+        log(f"pull_all returned {len(events)} rows")
 
         if not events:
             log("No events found")
@@ -23,12 +23,12 @@ def cli():
         # Process events (deduplicate, rank, filter)
         log("Ranking / filtering events")
         festivals, curated = aggregator.process(events)
-        log(f"Found {len(festivals)} festivals and {len(curated)} curated events")
+        log(f"Ranked to {len(festivals)} festivals + {len(curated)} curated")
         
         # Sync to calendar
-        log("Syncing events to Calendar")
+        log("Syncing to Google Calendar")
         calendar_client.sync(festivals + curated)
-        log("Successfully synced events to calendar")
+        log("Done")
         
     except Exception as e:
         log(f"Error: {e}")

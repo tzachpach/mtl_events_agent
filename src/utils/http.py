@@ -1,24 +1,21 @@
-import time
-import requests
-from typing import Optional, Dict, Any, List
-import pandas as pd
-import io
-import csv
+"""Tiny HTTP helpers with hard time-outs."""
+from __future__ import annotations
+import io, csv, requests, time
+from typing import List, Dict, Optional, Any
 
-def fetch_csv(url: str, timeout: int = 10, max_bytes: int = 5_000_000) -> List[Dict]:
-    """
-    Stream-download a CSV with a hard timeout and size cap.
+def fetch_csv(url: str, *, timeout: int = 12, max_bytes: int = 5_000_000) -> List[Dict[str, str]]:
+    """Stream-download a CSV with a hard timeout and size cap.
     Returns a list of dict rows. Raises on timeout or >max_bytes.
     """
     r = requests.get(url, stream=True, timeout=timeout)
     r.raise_for_status()
-    raw = io.BytesIO()
-    for chunk in r.iter_content(1024):
-        raw.write(chunk)
-        if raw.tell() > max_bytes:
-            raise RuntimeError("CSV too large")
-    raw.seek(0)
-    return list(csv.DictReader(io.TextIOWrapper(raw, encoding="utf-8")))
+    buf = io.BytesIO()
+    for chunk in r.iter_content(8192):
+        buf.write(chunk)
+        if buf.tell() > max_bytes:
+            raise RuntimeError(f"CSV larger than {max_bytes//1_000_000} MB – aborted")
+    buf.seek(0)
+    return list(csv.DictReader(io.TextIOWrapper(buf, encoding="utf-8")))
 
 def get_json(
     url: str,

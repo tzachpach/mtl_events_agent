@@ -8,12 +8,9 @@ import time
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-CALENDAR_ID = (
-    os.getenv("GCAL_ID")              # preferred
-    or os.getenv("GOOGLE_CALENDAR_ID")  # backward compat
-)
+CALENDAR_ID = os.getenv("GCAL_ID") or os.getenv("GOOGLE_CALENDAR_ID")
 if not CALENDAR_ID:
-    raise RuntimeError("GCAL_ID (or GOOGLE_CALENDAR_ID) env var not set")
+    raise RuntimeError("GCAL_ID (or GOOGLE_CALENDAR_ID) var not set")
 
 def get_calendar_service():
     sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
