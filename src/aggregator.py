@@ -1,6 +1,7 @@
 from typing import List, Tuple, Dict
 from datetime import datetime, timedelta
 import hashlib
+import concurrent.futures
 from .models import Event
 from .ranker import rank_and_filter
 from .sources import (
@@ -36,8 +37,21 @@ def deduplicate(events: List[Event]) -> List[Event]:
             
     return unique
 
+def fetch_with_timeout(source_func, timeout=60):
+    """Fetch events from a source with a timeout."""
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(source_func)
+            return future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        print(f"Timeout fetching from {source_func.__name__}")
+        return []
+    except Exception as e:
+        print(f"Error fetching from {source_func.__name__}: {e}")
+        return []
+
 def pull_all() -> List[Event]:
-    """Fetch events from all sources."""
+    """Fetch events from all sources with timeouts."""
     all_events = []
     
     # Fetch from each source
@@ -50,13 +64,23 @@ def pull_all() -> List[Event]:
         get_city_events
     ]
     
-    for source in sources:
-        try:
-            events = source()
-            all_events.extend(events)
-        except Exception as e:
-            print(f"Error fetching from {source.__name__}: {e}")
-            continue
+    # Use ThreadPoolExecutor to fetch from all sources concurrently
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
+        # Submit all source fetches
+        future_to_source = {
+            executor.submit(fetch_with_timeout, source): source.__name__
+            for source in sources
+        }
+        
+        # Collect results as they complete
+        for future in concurrent.futures.as_completed(future_to_source):
+            source_name = future_to_source[future]
+            try:
+                events = future.result()
+                all_events.extend(events)
+                print(f"Fetched {len(events)} events from {source_name}")
+            except Exception as e:
+                print(f"Error processing results from {source_name}: {e}")
             
     return all_events
 

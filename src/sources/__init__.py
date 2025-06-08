@@ -7,7 +7,7 @@ from typing import List
 from .reddit import get_reddit_events
 from .rss_generic import get_rss_events
 from .ville_mtl import get_city_events
-from .ticketmaster import get_ticketmaster_events
+# from .ticketmaster import get_ticketmaster_events # Removed as requested
 from ..models import Event
 
 __all__ = [
@@ -15,7 +15,7 @@ __all__ = [
     'get_reddit_events',
     'get_rss_events',
     'get_city_events',
-    'get_ticketmaster_events',
+    # 'get_ticketmaster_events', # Removed as requested
 ]
 
 def get_all_events() -> List[Event]:
@@ -25,5 +25,5 @@ def get_all_events() -> List[Event]:
     events.extend(get_reddit_events())
     events.extend(get_rss_events())
     events.extend(get_city_events())
-    events.extend(get_ticketmaster_events())  # Will return empty list if no API key
+    # events.extend(get_ticketmaster_events())  # Removed as requested
     return events 
