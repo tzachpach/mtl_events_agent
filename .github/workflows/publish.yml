@@ -29,9 +29,8 @@ jobs:
       - name: Run event aggregator
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
-          GOOGLE_CALENDAR_ID: ${{ secrets.GCAL_ID }}
+          GCAL_ID: ${{ secrets.GCAL_ID }}
           EVENTBRITE_TOKEN: ${{ secrets.EVENTBRITE_TOKEN }}
-          TICKETMASTER_API_KEY: ${{ secrets.TICKETMASTER_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           SMTP_USER: ${{ secrets.SMTP_USER }}

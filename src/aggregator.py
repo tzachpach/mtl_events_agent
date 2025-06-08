@@ -6,7 +6,7 @@ from .models import Event
 from .ranker import rank_and_filter
 from .sources import (
     # get_eventbrite_events,  # Eventbrite disabled
-    get_ticketmaster_events,
+    # get_ticketmaster_events, # Removed as requested
     # get_tourisme_events,
     get_rss_events,
     get_reddit_events,
@@ -57,7 +57,7 @@ def pull_all() -> List[Event]:
     # Fetch from each source
     sources = [
         # get_eventbrite_events,
-        get_ticketmaster_events,
+        # get_ticketmaster_events, # Removed as requested
         # get_tourisme_events,
         get_rss_events,
         get_reddit_events,

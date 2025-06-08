@@ -7,7 +7,12 @@ from .models import Event
 
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
-CALENDAR_ID = os.getenv("GCAL_ID")  # <- correct
+CALENDAR_ID = (
+    os.getenv("GCAL_ID")              # preferred
+    or os.getenv("GOOGLE_CALENDAR_ID")  # backward compat
+)
+if not CALENDAR_ID:
+    raise RuntimeError("GCAL_ID (or GOOGLE_CALENDAR_ID) env var not set")
 
 def get_calendar_service():
     sa_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")

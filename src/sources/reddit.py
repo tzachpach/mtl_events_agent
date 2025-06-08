@@ -1,65 +1,76 @@
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timedelta
 import requests
+import os
 from ..models import Event, EventSource
 
-REDDIT_API_URL = "https://www.reddit.com/r/montreal/search.json"
-USER_AGENT = "mtl-events-agent/0.1 by u/yourusername"
-
+PUBLIC_REDDIT_JSON_URL = "https://www.reddit.com/r/montreal/.json?limit=50"
+USER_AGENT = "mtl-events-agent/0.1 (by tzachlarboni for personal project)"
 
 def get_reddit_events() -> List[Event]:
     """
-    Fetch events from the r/montreal "What's on this week" thread.
+    Fetch events from Reddit's r/montreal subreddit.
+    Falls back to public JSON feed if REDDIT_CLIENT_ID/SECRET are absent.
     Returns a list of Event objects.
     """
-    params = {
-        "q": "What's on this week",
-        "restrict_sr": 1,
-        "sort": "new",
-        "limit": 1
-    }
-    headers = {"User-Agent": USER_AGENT}
-    response = requests.get(REDDIT_API_URL, params=params, headers=headers)
-    response.raise_for_status()
-    data = response.json()
     events = []
-    posts = data.get("data", {}).get("children", [])
-    if not posts:
-        return events
-    thread = posts[0]["data"]
-    # Parse the thread body for event lines (very basic: one event per line)
-    body = thread.get("selftext", "")
-    for line in body.splitlines():
-        if not line.strip() or '|' not in line:
-            continue
-        # Try to parse: "Mar 28 | Event Title | Location | URL"
-        parts = [p.strip() for p in line.split('|')]
-        if len(parts) < 2:
-            continue
-        try:
-            # Parse date (assume current year)
-            date_str = parts[0]
+    headers = {"User-Agent": USER_AGENT}
+    keywords = ["festival", "event", "happening", "thing to do"]
+
+    # Reddit API credentials are not directly used in this public fallback logic.
+    # The presence of these vars would typically trigger a different (authenticated) flow.
+    reddit_client_id = os.getenv("REDDIT_CLIENT_ID")
+    reddit_client_secret = os.getenv("REDDIT_CLIENT_SECRET")
+
+    try:
+        response = requests.get(PUBLIC_REDDIT_JSON_URL, headers=headers, timeout=8)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        data = response.json()
+
+        posts = data.get("data", {}).get("children", [])
+        for post in posts:
+            post_data = post.get("data", {})
+            title = post_data.get("title", "")
+            
+            # Check if title contains any of the keywords (case-insensitive)
+            if not any(keyword in title.lower() for keyword in keywords):
+                continue  # Skip if no keyword found
+
+            # Map fields into Event objects
             try:
-                event_date = datetime.strptime(date_str + f" {datetime.now().year}", "%b %d %Y")
-            except Exception:
-                event_date = datetime.now()
-            title = parts[1]
-            location = parts[2] if len(parts) > 2 else "Montreal"
-            url = parts[3] if len(parts) > 3 else thread.get("url", "")
-            event = Event(
-                title=title,
-                description="Reddit r/montreal community event.",
-                start_dt=event_date,
-                end_dt=event_date + timedelta(hours=2),
-                location=location,
-                url=url,
-                source=EventSource.REDDIT,
-                source_id=thread["id"] + title,
-                is_all_day=False,
-                popularity=None
-            )
-            events.append(event)
-        except Exception as e:
-            print(f"Error parsing Reddit event line: {e}")
-            continue
+                description = post_data.get("selftext", "").strip()
+                if not description:
+                    description = post_data.get("url", "").strip()  # Use URL as description if selftext is empty
+
+                url = post_data.get("url", "")
+                if not url:  # Basic validation for URL
+                    continue
+
+                start_dt = datetime.now()
+                end_dt = start_dt + timedelta(hours=2)
+                
+                location = "Montreal"  # Default location as per prompt
+
+                event = Event(
+                    title=title,
+                    description=description,
+                    start_dt=start_dt,
+                    end_dt=end_dt,
+                    location=location,
+                    url=url,
+                    source=EventSource.REDDIT,
+                    source_id=post_data.get("id", url),  # Use id, fallback to url
+                    is_all_day=False,
+                    popularity=0.1  # Small default popularity
+                )
+                events.append(event)
+            except Exception as e:
+                print(f"Error parsing Reddit post data: {e} - Post: {post_data.get('title', 'N/A')}")
+                continue
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching Reddit events: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred while processing Reddit events: {e}")
+        
     return events 
