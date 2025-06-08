@@ -1,28 +1,37 @@
 import sys
 import click
+import time
 import src.aggregator as aggregator
 import src.calendar_client as calendar_client
+
+T0 = time.time()
+def log(msg: str): print(f"[{time.time()-T0:5.1f}s] {msg}", flush=True)
 
 @click.command()
 def cli():
     """Montréal Events Agent - Curates and publishes events to Google Calendar."""
     try:
         # Pull events from all sources
+        log("Fetching events from all sources")
         events = aggregator.pull_all()
+        log(f"Fetched {len(events)} total events from all sources")
+
         if not events:
-            print("No events found")
+            log("No events found")
             sys.exit(0)
             
         # Process events (deduplicate, rank, filter)
+        log("Ranking / filtering events")
         festivals, curated = aggregator.process(events)
-        print(f"Found {len(festivals)} festivals and {len(curated)} curated events")
+        log(f"Found {len(festivals)} festivals and {len(curated)} curated events")
         
         # Sync to calendar
+        log("Syncing events to Calendar")
         calendar_client.sync(festivals + curated)
-        print("Successfully synced events to calendar")
+        log("Successfully synced events to calendar")
         
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        log(f"Error: {e}")
         sys.exit(1)
 
 if __name__ == '__main__':

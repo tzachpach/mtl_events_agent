@@ -1,8 +1,24 @@
 import time
 import requests
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import pandas as pd
 import io
+import csv
+
+def fetch_csv(url: str, timeout: int = 10, max_bytes: int = 5_000_000) -> List[Dict]:
+    """
+    Stream-download a CSV with a hard timeout and size cap.
+    Returns a list of dict rows. Raises on timeout or >max_bytes.
+    """
+    r = requests.get(url, stream=True, timeout=timeout)
+    r.raise_for_status()
+    raw = io.BytesIO()
+    for chunk in r.iter_content(1024):
+        raw.write(chunk)
+        if raw.tell() > max_bytes:
+            raise RuntimeError("CSV too large")
+    raw.seek(0)
+    return list(csv.DictReader(io.TextIOWrapper(raw, encoding="utf-8")))
 
 def get_json(
     url: str,
