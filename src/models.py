@@ -1,5 +1,6 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List
 from enum import Enum
 import pytz
@@ -9,31 +10,44 @@ from email.utils import parsedate_to_datetime
 MONTREAL_TZ = pytz.timezone('America/Montreal')
 
 class EventSource(Enum):
+    VILLE_MTL = "ville_mtl"
     TOURISME_MTL = "tourisme_mtl"
     EVENTBRITE = "eventbrite"
+    TICKETMASTER = "ticketmaster"
+    REDDIT = "reddit"
     MTL_BLOG = "mtl_blog"
     GAZETTE = "gazette"
-    REDDIT = "reddit"
-    VILLE_MTL = "ville_mtl"
 
 @dataclass
 class Event:
     """Represents a single event with all its metadata."""
     title: str
     description: str
+    url: str
     start_dt: datetime
     end_dt: datetime
     location: str
-    url: str
+    popularity: float
     source: EventSource
     source_id: str
     is_all_day: bool = False
-    popularity: Optional[float] = None
-    score: Optional[float] = None
+    score: float = None
     
     def __post_init__(self):
-        if self.end_dt < self.start_dt:
-            raise ValueError("End time must be after start time")
+        """Ensure all datetimes are timezone-aware and in Montreal time."""
+        montreal_tz = pytz.timezone('America/Montreal')
+        
+        # Handle start_dt
+        if self.start_dt.tzinfo is None:
+            self.start_dt = montreal_tz.localize(self.start_dt)
+        else:
+            self.start_dt = self.start_dt.astimezone(montreal_tz)
+            
+        # Handle end_dt
+        if self.end_dt.tzinfo is None:
+            self.end_dt = montreal_tz.localize(self.end_dt)
+        else:
+            self.end_dt = self.end_dt.astimezone(montreal_tz)
         
     @property
     def duration_hours(self) -> float:
@@ -41,43 +55,38 @@ class Event:
         return (self.end_dt - self.start_dt).total_seconds() / 3600
         
     @staticmethod
-    def parse_date(dt_str: str) -> datetime:
-        """Parses a date string into a timezone-aware datetime object for Montreal.
-        Handles various ISO 8601-like formats and ensures timezone awareness.
-        """
-        if not dt_str:
-            raise ValueError("Date string cannot be empty")
+    def parse_date(date_str: str) -> datetime:
+        """Parse date string and ensure timezone is set to Montreal."""
+        montreal_tz = pytz.timezone('America/Montreal')
         
         # Try parsing as RFC 2822 format (used by RSS feeds)
         try:
-            dt = parsedate_to_datetime(dt_str)
-            return dt.astimezone(MONTREAL_TZ)
+            dt = parsedate_to_datetime(date_str)
+            return dt.astimezone(montreal_tz)
         except (ValueError, TypeError):
             pass
             
-        # Try parsing as datetime with potential timezone info
+        # Try parsing as ISO format
         try:
-            dt = datetime.fromisoformat(dt_str)
-            if dt.tzinfo is None: # If no timezone info, assume Montreal time
-                return MONTREAL_TZ.localize(dt)
-            else:
-                return dt.astimezone(MONTREAL_TZ)
+            dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=pytz.UTC)
+            return dt.astimezone(montreal_tz)
         except ValueError:
-            pass # Try other formats
+            pass
             
-        # Try parsing as date only (YYYY-MM-DD), then localize to Montreal and set time to midnight
-        try:
-            dt = datetime.strptime(dt_str, '%Y-%m-%d')
-            return MONTREAL_TZ.localize(dt) # Midnight in Montreal timezone
-        except ValueError:
-            pass
-
-        # Try parsing with a common combined format (e.g., from CSV like 'YYYY-MM-DD HH:MM:SS')
-        try:
-            dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M:%S')
-            return MONTREAL_TZ.localize(dt)
-        except ValueError:
-            pass
-
-        # If all parsing attempts fail
-        raise ValueError(f"Could not parse date string: {dt_str}") 
+        # Try common date formats
+        formats = [
+            '%Y-%m-%d',           # YYYY-MM-DD
+            '%Y-%m-%d %H:%M:%S',  # YYYY-MM-DD HH:MM:SS
+            '%d/%m/%Y %H:%M',     # DD/MM/YYYY HH:MM
+        ]
+        
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(date_str, fmt)
+                return montreal_tz.localize(dt)
+            except ValueError:
+                continue
+                
+        raise ValueError(f"Could not parse date string: {date_str}") 

@@ -39,27 +39,36 @@ def translate_batch(texts: List[str], target_lang: str = 'en') -> List[str]:
     if not to_translate:
         return results
         
-    try:
-        url = "https://translation.googleapis.com/language/translate/v2"
-        params = {
-            'q': to_translate,
-            'target': target_lang,
-            'source': 'fr',
-            'key': os.getenv('GOOGLE_TRANSLATE_KEY')
-        }
-        response = requests.post(url, params=params)
-        if response.status_code == 200:
-            translations = response.json()['data']['translations']
-            for text, trans in zip(to_translate, translations):
-                translated = trans['translatedText']
-                translation_cache[text] = translated
-                results[text_to_idx[text]] = translated
-    except Exception as e:
-        print(f"Batch translation error: {e}")
-        # Fall back to original texts
-        for text in to_translate:
-            results[text_to_idx[text]] = text
-            
+    # Split into smaller batches to avoid connection issues
+    BATCH_SIZE = 50
+    for i in range(0, len(to_translate), BATCH_SIZE):
+        batch = to_translate[i:i + BATCH_SIZE]
+        try:
+            url = "https://translation.googleapis.com/language/translate/v2"
+            params = {
+                'q': batch,
+                'target': target_lang,
+                'source': 'fr',
+                'key': os.getenv('GOOGLE_TRANSLATE_KEY')
+            }
+            response = requests.post(url, params=params)
+            if response.status_code == 200:
+                translations = response.json()['data']['translations']
+                for text, trans in zip(batch, translations):
+                    translated = trans['translatedText']
+                    translation_cache[text] = translated
+                    results[text_to_idx[text]] = translated
+            else:
+                print(f"Translation API error: {response.status_code} - {response.text}")
+                # Fall back to original texts for this batch
+                for text in batch:
+                    results[text_to_idx[text]] = text
+        except Exception as e:
+            print(f"Batch translation error: {e}")
+            # Fall back to original texts for this batch
+            for text in batch:
+                results[text_to_idx[text]] = text
+                
     return results
 
 def fix_encoding(text: str) -> str:

@@ -6,7 +6,7 @@ import src.aggregator as aggregator
 import src.calendar_client as calendar_client
 from datetime import datetime
 from .aggregator import pull_all
-from .ranker import rank_events
+from .ranker import rank_and_filter
 from .calendar_client import sync
 
 T0 = time.time()
@@ -35,7 +35,7 @@ def cli():
         print(f"[{fetch_time - start_time:.1f}s] Fetched {len(events)} total events")
         
         print(f"\n[{time.time() - start_time:.1f}s] Ranking events")
-        ranked = rank_events(events)
+        ranked = rank_and_filter(events)
         rank_time = time.time()
         print(f"[{rank_time - fetch_time:.1f}s] Ranked {len(ranked)} events")
         
