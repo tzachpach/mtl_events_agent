@@ -35,7 +35,7 @@ def load_keywords() -> Dict[str, float]:
 
 def score_event(event: Event, kw_map: Dict[str, float]) -> float:
     """Calculate a comprehensive score for an event.
-    Score is based on source priority, keyword matches, and popularity.
+    Score is based on source priority, keyword matches, popularity, and language preference.
     """
     # Source priority component (0.0 to 1.0)
     source_weight = SOURCE_WEIGHTS.get(event.source, 0.5)
@@ -61,16 +61,48 @@ def score_event(event: Event, kw_map: Dict[str, float]) -> float:
         duration_component = 0.1
     if event.is_all_day:
         duration_component += 0.15
+        
+    # Language preference component (0.0 to 1.0)
+    language_component = 0.0
+    
+    # Check if event is from English sources
+    if event.source in [EventSource.REDDIT, EventSource.MTL_BLOG, EventSource.GAZETTE]:
+        language_component = 1.0
+    else:
+        # Look for English indicators in title and description
+        text = (event.title + " " + event.description).lower()
+        
+        # If we see both French and English flags, it's bilingual
+        has_fr = "🇫🇷" in text
+        has_en = "🇬🇧" in text
+        if has_fr and has_en:
+            language_component = 0.7  # Bilingual events are good but not as good as English-only
+        
+        # Look for common English words that indicate English content
+        english_indicators = [
+            "the", "and", "or", "with", "featuring",
+            "presents", "live", "show", "free", "tickets",
+            "performance", "music", "concert", "event"
+        ]
+        english_count = sum(1 for word in english_indicators if f" {word} " in f" {text} ")
+        if english_count >= 3:  # If we find several English words, likely an English event
+            language_component = max(language_component, 0.8)
+            
+        # Check if title contains a slash (indicating bilingual title)
+        if "/" in event.title:
+            language_component = max(language_component, 0.6)
 
     # Combine components with new weights:
-    # - 40% source priority
-    # - 30% keywords
-    # - 20% popularity
+    # - 30% source priority
+    # - 25% keywords
+    # - 25% language preference
+    # - 10% popularity
     # - 10% duration
     score = (
-        (0.4 * source_weight) +
-        (0.3 * keyword_score) +
-        (0.2 * popularity_component) +
+        (0.3 * source_weight) +
+        (0.25 * keyword_score) +
+        (0.25 * language_component) +
+        (0.1 * popularity_component) +
         (0.1 * duration_component)
     )
     
