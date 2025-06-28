@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 from enum import Enum
 import pytz
+from email.utils import parsedate_to_datetime
 
 # Montreal timezone
 MONTREAL_TZ = pytz.timezone('America/Montreal')
@@ -47,6 +48,13 @@ class Event:
         if not dt_str:
             raise ValueError("Date string cannot be empty")
         
+        # Try parsing as RFC 2822 format (used by RSS feeds)
+        try:
+            dt = parsedate_to_datetime(dt_str)
+            return dt.astimezone(MONTREAL_TZ)
+        except (ValueError, TypeError):
+            pass
+            
         # Try parsing as datetime with potential timezone info
         try:
             dt = datetime.fromisoformat(dt_str)
