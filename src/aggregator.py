@@ -37,19 +37,6 @@ def deduplicate(events: List[Event]) -> List[Event]:
             
     return unique
 
-def fetch_with_timeout(source_func, timeout=60):
-    """Fetch events from a source with a timeout."""
-    try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(source_func)
-            return future.result(timeout=timeout)
-    except concurrent.futures.TimeoutError:
-        print(f"Timeout fetching from {source_func.__name__}")
-        return []
-    except Exception as e:
-        print(f"Error fetching from {source_func.__name__}: {e}")
-        return []
-
 def pull_all() -> List[Event]:
     """Fetch events from all sources with timeouts."""
     all_events = []
@@ -64,24 +51,35 @@ def pull_all() -> List[Event]:
         get_city_events
     ]
     
-    # Use ThreadPoolExecutor to fetch from all sources concurrently
+    # Use a single ThreadPoolExecutor with a timeout for all sources
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(sources)) as executor:
-        # Submit all source fetches
-        future_to_source = {
-            executor.submit(fetch_with_timeout, source): source.__name__
-            for source in sources
-        }
+        # Submit all source fetches with timeout
+        futures = []
+        for source in sources:
+            future = executor.submit(source)
+            futures.append((future, source.__name__))
         
-        # Collect results as they complete
-        for future in concurrent.futures.as_completed(future_to_source):
-            source_name = future_to_source[future]
-            try:
-                events = future.result()
-                all_events.extend(events)
-                print(f"Fetched {len(events)} events from {source_name}")
-            except Exception as e:
-                print(f"Error processing results from {source_name}: {e}")
-            
+        # Wait for all futures with timeout
+        try:
+            # Give each source up to 30 seconds
+            for future, source_name in futures:
+                try:
+                    events = future.result(timeout=30)
+                    all_events.extend(events)
+                    print(f"Fetched {len(events)} events from {source_name}")
+                except concurrent.futures.TimeoutError:
+                    print(f"Timeout fetching from {source_name}")
+                    future.cancel()
+                except Exception as e:
+                    print(f"Error fetching from {source_name}: {e}")
+                    future.cancel()
+                    
+        except Exception as e:
+            print(f"Error during event fetching: {e}")
+            # Cancel any remaining futures
+            for future, _ in futures:
+                future.cancel()
+    
     return all_events
 
 def process(events: List[Event]) -> Tuple[List[Event], List[Event]]:
