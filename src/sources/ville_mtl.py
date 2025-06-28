@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Optional, Tuple
 from datetime import datetime, timedelta, date
 import unicodedata
+import re
 from ..models import Event, EventSource
 from ..utils.http import fetch_csv
 
@@ -20,6 +21,32 @@ def fix_encoding(text: str) -> str:
     except Exception:
         return text
 
+def parse_time_from_description(description: str, start_date: datetime) -> Tuple[datetime, datetime]:
+    """
+    Parse time from description text like "Jeudi 3 juillet 2025 de 18 h 30 à 20 h 00"
+    Returns a tuple of (start_datetime, end_datetime)
+    """
+    # Try to find time pattern like "18 h 30" or "20 h 00"
+    time_pattern = r'(\d{1,2})\s*h\s*(\d{2})?'
+    times = re.findall(time_pattern, description)
+    
+    if len(times) >= 2:  # We found both start and end times
+        start_hour = int(times[0][0])
+        start_min = int(times[0][1]) if times[0][1] else 0
+        end_hour = int(times[1][0])
+        end_min = int(times[1][1]) if times[1][1] else 0
+        
+        start_dt = start_date.replace(hour=start_hour, minute=start_min)
+        end_dt = start_date.replace(hour=end_hour, minute=end_min)
+        
+        # If end time is earlier than start time, assume it's next day
+        if end_dt < start_dt:
+            end_dt = end_dt + timedelta(days=1)
+            
+        return start_dt, end_dt
+    
+    return start_date, start_date + timedelta(hours=2)  # Default to 2-hour duration
+
 def get_city_events() -> List[Event]:
     events = []
     try:
@@ -32,13 +59,18 @@ def get_city_events() -> List[Event]:
                 start = Event.parse_date(r["date_debut"])
                 if not (today <= start.date() <= horizon):
                     continue
+                    
+                # Parse time from description if available
+                description = fix_encoding(r["description"])
+                start_dt, end_dt = parse_time_from_description(description, start)
+                
                 out.append(
                     Event(
                         title       = fix_encoding(r["titre"]),
-                        description = fix_encoding(r["description"]),
+                        description = description,
                         url         = r["url_fiche"],
-                        start_dt    = start,
-                        end_dt      = Event.parse_date(r["date_fin"]) if r["date_fin"] else start + timedelta(hours=2),
+                        start_dt    = start_dt,
+                        end_dt      = end_dt,
                         location    = fix_encoding(r.get("titre_adresse") or r.get("arrondissement") or "Montreal"), # Default to Montreal if both missing
                         popularity  = 0.2,
                         source      = EventSource.VILLE_MTL,
