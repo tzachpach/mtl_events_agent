@@ -3,6 +3,7 @@ import click
 import time
 import src.aggregator as aggregator
 import src.calendar_client as calendar_client
+from datetime import datetime
 
 T0 = time.time()
 def log(msg: str): print(f"[{time.time()-T0:6.1f}s] {msg}", flush=True)
@@ -25,10 +26,25 @@ def cli():
         festivals, curated = aggregator.process(events)
         log(f"Ranked to {len(festivals)} festivals + {len(curated)} curated")
         
-        # Sync to calendar
-        log("Syncing to Google Calendar")
-        calendar_client.sync(festivals + curated)
-        log("Done")
+        # Display top 20 events
+        log("\nTop 20 Curated Events:")
+        for i, event in enumerate(curated[:20], 1):
+            log(f"\n{i}. {event.title}")
+            log(f"   When: {event.start_dt.strftime('%Y-%m-%d %H:%M')} - {event.end_dt.strftime('%H:%M')}")
+            log(f"   Where: {event.location}")
+            log(f"   Source: {event.source.value}")
+            if event.score:
+                log(f"   Score: {event.score:.2f}")
+            if event.popularity:
+                log(f"   Popularity: {event.popularity:.2f}")
+        
+        if festivals:
+            log("\nFestivals/Multi-day Events:")
+            for i, event in enumerate(festivals[:5], 1):
+                log(f"\n{i}. {event.title}")
+                log(f"   When: {event.start_dt.strftime('%Y-%m-%d')} - {event.end_dt.strftime('%Y-%m-%d')}")
+                log(f"   Where: {event.location}")
+                log(f"   Source: {event.source.value}")
         
     except Exception as e:
         log(f"Error: {e}")
