@@ -50,8 +50,11 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
           echo "Starting event aggregator..."
+          echo "Using calendar ID: $GCAL_ID"
+          echo "Service account file path: $GOOGLE_APPLICATION_CREDENTIALS"
+          echo "Service account file contents:"
+          cat $GOOGLE_APPLICATION_CREDENTIALS | grep "client_email"
           python -m src.main
-        continue-on-error: true
         
       - name: Send failure notification
         if: failure()

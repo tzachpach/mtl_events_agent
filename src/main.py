@@ -45,6 +45,12 @@ def cli():
                 log(f"   When: {event.start_dt.strftime('%Y-%m-%d')} - {event.end_dt.strftime('%Y-%m-%d')}")
                 log(f"   Where: {event.location}")
                 log(f"   Source: {event.source.value}")
+
+        # Sync events to calendar
+        log("\nSyncing events to calendar...")
+        all_events = festivals + curated
+        calendar_client.sync(all_events)
+        log("Calendar sync complete")
         
     except Exception as e:
         log(f"Error: {e}")
