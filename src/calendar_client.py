@@ -23,6 +23,21 @@ def get_calendar_service():
     return build("calendar", "v3", credentials=creds, cache_discovery=False)
 
 
+def list_events(start_date: datetime, end_date: datetime) -> List[dict]:
+    """List events in the calendar between start_date and end_date."""
+    service = get_calendar_service()
+    
+    events_result = service.events().list(
+        calendarId=CALENDAR_ID,
+        timeMin=start_date.isoformat() + 'Z',
+        timeMax=end_date.isoformat() + 'Z',
+        singleEvents=True,
+        orderBy='startTime'
+    ).execute()
+    
+    return events_result.get('items', [])
+
+
 def event_to_calendar_event(event: Event) -> dict:
     """Convert our Event model to Google Calendar event format."""
     calendar_event = {

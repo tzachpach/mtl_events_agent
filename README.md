@@ -2,6 +2,8 @@
 
 An autonomous agent that curates and publishes interesting events in Montréal to a public Google Calendar.
 
+**Important Note About Jazz Festival**: The Montreal International Jazz Festival runs from June 26 to July 5, 2025. Events from the festival will be automatically aggregated and added to the calendar as they become available. The agent will prioritize jazz events during this period due to their high cultural significance.
+
 ## Features
 
 - Weekly scraping of multiple public sources for Montréal events
