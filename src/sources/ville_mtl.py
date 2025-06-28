@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from datetime import datetime, timedelta, date
 import unicodedata
 import re
@@ -12,25 +12,54 @@ URL = (
     "resource/6decf611-6f11-4f34-bb36-324d804c9bad/download/evenements.csv"
 )
 
-def translate_text(text: str, target_lang: str = 'en') -> str:
+# Cache for translations to avoid duplicate API calls
+translation_cache: Dict[str, str] = {}
+
+def translate_batch(texts: List[str], target_lang: str = 'en') -> List[str]:
     """
-    Translate text using Google Cloud Translation API.
-    Returns the original text if translation fails.
+    Translate a batch of texts using Google Cloud Translation API.
+    Returns list of translated texts, falling back to original if translation fails.
     """
+    if not texts:
+        return []
+        
+    # Filter out already cached translations
+    to_translate = []
+    text_to_idx = {}
+    results = [""] * len(texts)
+    
+    for i, text in enumerate(texts):
+        if text in translation_cache:
+            results[i] = translation_cache[text]
+        else:
+            to_translate.append(text)
+            text_to_idx[text] = i
+    
+    if not to_translate:
+        return results
+        
     try:
         url = "https://translation.googleapis.com/language/translate/v2"
         params = {
-            'q': text,
+            'q': to_translate,
             'target': target_lang,
             'source': 'fr',
             'key': os.getenv('GOOGLE_TRANSLATE_KEY')
         }
         response = requests.post(url, params=params)
         if response.status_code == 200:
-            return response.json()['data']['translations'][0]['translatedText']
+            translations = response.json()['data']['translations']
+            for text, trans in zip(to_translate, translations):
+                translated = trans['translatedText']
+                translation_cache[text] = translated
+                results[text_to_idx[text]] = translated
     except Exception as e:
-        print(f"Translation error: {e}")
-    return text
+        print(f"Batch translation error: {e}")
+        # Fall back to original texts
+        for text in to_translate:
+            results[text_to_idx[text]] = text
+            
+    return results
 
 def fix_encoding(text: str) -> str:
     if not isinstance(text, str):
@@ -75,20 +104,40 @@ def get_city_events() -> List[Event]:
         rows = fetch_csv(URL)          # 12-s timeout, 5 MB cap
         today = date.today()
         horizon = today + timedelta(days=35)
-        out: List[Event] = []
+        
+        # Prepare batches for translation
+        titles_fr = []
+        descriptions_fr = []
+        valid_rows = []
+        
+        # First pass: collect texts for translation
         for r in rows:
             try:
                 start = Event.parse_date(r["date_debut"])
                 if not (today <= start.date() <= horizon):
                     continue
                     
-                # Parse time from description if available
-                description_fr = fix_encoding(r["description"])
                 title_fr = fix_encoding(r["titre"])
+                description_fr = fix_encoding(r["description"])
                 
-                # Translate title and description to English
-                title_en = translate_text(title_fr)
-                description_en = translate_text(description_fr)
+                titles_fr.append(title_fr)
+                descriptions_fr.append(description_fr)
+                valid_rows.append((r, start))
+            except (ValueError, KeyError, TypeError) as e:
+                print(f"Error parsing Ville de Montréal event row: {r} - {e}")
+                continue
+                
+        # Batch translate all texts
+        titles_en = translate_batch(titles_fr)
+        descriptions_en = translate_batch(descriptions_fr)
+        
+        # Second pass: create events with translations
+        for i, (r, start) in enumerate(valid_rows):
+            try:
+                title_fr = titles_fr[i]
+                title_en = titles_en[i]
+                description_fr = descriptions_fr[i]
+                description_en = descriptions_en[i]
                 
                 # Combine French and English versions
                 title = f"{title_fr} / {title_en}" if title_en != title_fr else title_fr
@@ -96,23 +145,24 @@ def get_city_events() -> List[Event]:
                 
                 start_dt, end_dt = parse_time_from_description(description_fr, start)
                 
-                out.append(
+                events.append(
                     Event(
                         title       = title,
                         description = description,
                         url         = r["url_fiche"],
                         start_dt    = start_dt,
                         end_dt      = end_dt,
-                        location    = fix_encoding(r.get("titre_adresse") or r.get("arrondissement") or "Montreal"), # Default to Montreal if both missing
+                        location    = fix_encoding(r.get("titre_adresse") or r.get("arrondissement") or "Montreal"),
                         popularity  = 0.2,
                         source      = EventSource.VILLE_MTL,
                         source_id   = r["url_fiche"],
                         is_all_day  = False,
                     )
                 )
-            except (ValueError, KeyError, TypeError) as e:
-                print(f"Error parsing Ville de Montréal event row: {r} - {e}")
+            except Exception as e:
+                print(f"Error creating event from row: {e}")
                 continue
+                
     except Exception as e:
         print(f"Error fetching or processing Ville de Montréal CSV: {e}")
-    return out 
+    return events 

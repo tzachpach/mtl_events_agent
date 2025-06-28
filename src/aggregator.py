@@ -61,10 +61,12 @@ def pull_all() -> List[Event]:
         
         # Wait for all futures with timeout
         try:
-            # Give each source up to 30 seconds
+            # Give each source appropriate timeout
             for future, source_name in futures:
                 try:
-                    events = future.result(timeout=30)
+                    # City events need more time for translations
+                    timeout = 60 if source_name == 'get_city_events' else 30
+                    events = future.result(timeout=timeout)
                     all_events.extend(events)
                     print(f"Fetched {len(events)} events from {source_name}")
                 except concurrent.futures.TimeoutError:
