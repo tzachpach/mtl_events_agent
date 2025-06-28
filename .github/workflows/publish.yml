@@ -26,6 +26,19 @@ jobs:
           echo "${{ secrets.GOOGLE_SERVICE_ACCOUNT }}" | base64 -d > sa.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/sa.json" >> $GITHUB_ENV
           
+      - name: Verify environment
+        run: |
+          echo "Python version:"
+          python --version
+          echo "Pip version:"
+          pip --version
+          echo "Working directory:"
+          pwd
+          echo "Service account file exists:"
+          test -f "$GOOGLE_APPLICATION_CREDENTIALS" && echo "Yes" || echo "No"
+          echo "Environment variables set:"
+          env | grep -E "GCAL_ID|GOOGLE_APPLICATION|REDDIT_"
+          
       - name: Run event aggregator
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
@@ -35,7 +48,9 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-        run: python -m src.main
+        run: |
+          echo "Starting event aggregator..."
+          python -m src.main
         continue-on-error: true
         
       - name: Send failure notification
