@@ -1,9 +1,13 @@
 import sys
 import click
 import time
+import os
 import src.aggregator as aggregator
 import src.calendar_client as calendar_client
 from datetime import datetime
+from .aggregator import pull_all
+from .ranker import rank_events
+from .calendar_client import sync
 
 T0 = time.time()
 def log(msg: str): print(f"[{time.time()-T0:6.1f}s] {msg}", flush=True)
@@ -12,45 +16,35 @@ def log(msg: str): print(f"[{time.time()-T0:6.1f}s] {msg}", flush=True)
 def cli():
     """Montréal Events Agent - Curates and publishes events to Google Calendar."""
     try:
-        # Pull events from all sources
-        log("Fetching events from all sources")
-        events = aggregator.pull_all()
-        log(f"pull_all returned {len(events)} rows")
-
-        if not events:
-            log("No events found")
-            sys.exit(0)
-            
-        # Process events (deduplicate, rank, filter)
-        log("Ranking / filtering events")
-        festivals, curated = aggregator.process(events)
-        log(f"Ranked to {len(festivals)} festivals + {len(curated)} curated")
+        print("Starting event aggregator...")
+        print(f"Using calendar ID: {os.getenv('GOOGLE_CALENDAR_ID')}")
+        print(f"Service account file path: {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
         
-        # Display top 20 events
-        log("\nTop 20 Curated Events:")
-        for i, event in enumerate(curated[:20], 1):
-            log(f"\n{i}. {event.title}")
-            log(f"   When: {event.start_dt.strftime('%Y-%m-%d %H:%M')} - {event.end_dt.strftime('%H:%M')}")
-            log(f"   Where: {event.location}")
-            log(f"   Source: {event.source.value}")
-            if event.score:
-                log(f"   Score: {event.score:.2f}")
-            if event.popularity:
-                log(f"   Popularity: {event.popularity:.2f}")
+        if os.path.isfile(os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')):
+            with open(os.getenv('GOOGLE_APPLICATION_CREDENTIALS', ''), 'r') as f:
+                print("Service account file contents:")
+                for line in f:
+                    if "client_email" in line:
+                        print(f"  {line.strip()}")
+                        break
         
-        if festivals:
-            log("\nFestivals/Multi-day Events:")
-            for i, event in enumerate(festivals[:5], 1):
-                log(f"\n{i}. {event.title}")
-                log(f"   When: {event.start_dt.strftime('%Y-%m-%d')} - {event.end_dt.strftime('%Y-%m-%d')}")
-                log(f"   Where: {event.location}")
-                log(f"   Source: {event.source.value}")
-
-        # Sync events to calendar
-        log("\nSyncing events to calendar...")
-        all_events = festivals + curated
-        calendar_client.sync(all_events)
-        log("Calendar sync complete")
+        start_time = time.time()
+        print(f"\n[{time.time() - start_time:.1f}s] Fetching events from all sources")
+        events = pull_all()
+        fetch_time = time.time()
+        print(f"[{fetch_time - start_time:.1f}s] Fetched {len(events)} total events")
+        
+        print(f"\n[{time.time() - start_time:.1f}s] Ranking events")
+        ranked = rank_events(events)
+        rank_time = time.time()
+        print(f"[{rank_time - fetch_time:.1f}s] Ranked {len(ranked)} events")
+        
+        print(f"\n[{time.time() - start_time:.1f}s] Syncing to calendar")
+        sync(ranked)
+        sync_time = time.time()
+        print(f"[{sync_time - rank_time:.1f}s] Calendar sync complete")
+        
+        print(f"\nTotal time: {sync_time - start_time:.1f}s")
         
     except Exception as e:
         log(f"Error: {e}")

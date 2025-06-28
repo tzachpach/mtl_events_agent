@@ -6,6 +6,7 @@ from ..models import Event, EventSource
 from ..utils.http import fetch_csv
 import requests
 import os
+import time
 
 URL = (
     "https://donnees.montreal.ca/dataset/evenements-publics/"
@@ -101,7 +102,11 @@ def parse_time_from_description(description: str, start_date: datetime) -> Tuple
 def get_city_events() -> List[Event]:
     events = []
     try:
+        print("\nFetching city events:")
+        fetch_start = time.time()
         rows = fetch_csv(URL)          # 12-s timeout, 5 MB cap
+        print(f"[{time.time() - fetch_start:.1f}s] CSV fetched")
+        
         today = date.today()
         horizon = today + timedelta(days=35)
         
@@ -111,6 +116,7 @@ def get_city_events() -> List[Event]:
         valid_rows = []
         
         # First pass: collect texts for translation
+        parse_start = time.time()
         for r in rows:
             try:
                 start = Event.parse_date(r["date_debut"])
@@ -126,12 +132,17 @@ def get_city_events() -> List[Event]:
             except (ValueError, KeyError, TypeError) as e:
                 print(f"Error parsing Ville de Montréal event row: {r} - {e}")
                 continue
+        print(f"[{time.time() - parse_start:.1f}s] Parsed {len(valid_rows)} valid events")
                 
         # Batch translate all texts
+        trans_start = time.time()
         titles_en = translate_batch(titles_fr)
         descriptions_en = translate_batch(descriptions_fr)
+        print(f"[{time.time() - trans_start:.1f}s] Translated {len(titles_fr)} titles and {len(descriptions_fr)} descriptions")
+        print(f"Translation cache hits: {len(translation_cache)}")
         
         # Second pass: create events with translations
+        create_start = time.time()
         for i, (r, start) in enumerate(valid_rows):
             try:
                 title_fr = titles_fr[i]
@@ -162,6 +173,8 @@ def get_city_events() -> List[Event]:
             except Exception as e:
                 print(f"Error creating event from row: {e}")
                 continue
+        print(f"[{time.time() - create_start:.1f}s] Created {len(events)} events")
+        print(f"Total time: {time.time() - fetch_start:.1f}s")
                 
     except Exception as e:
         print(f"Error fetching or processing Ville de Montréal CSV: {e}")
