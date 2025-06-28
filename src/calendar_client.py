@@ -71,6 +71,11 @@ def sync(events: List[Event]) -> None:
         if event.end_dt.date() != event.start_dt.date():
             event_dates.add(event.end_dt.date())
     
+    print(f"\nFetching existing calendar events for {len(event_dates)} unique dates...")
+    updated_count = 0
+    created_count = 0
+    error_count = 0
+    
     # Only fetch calendar events for dates where we have events to sync
     for date in event_dates:
         date_start = datetime.combine(date, datetime.min.time())
@@ -93,7 +98,10 @@ def sync(events: List[Event]) -> None:
                     
         except Exception as e:
             print(f"Error fetching calendar events for {date}: {e}")
+            error_count += 1
             continue
+    
+    print(f"Found {len(existing_events)} existing events in calendar")
     
     # Process events in smaller batches
     for i in range(0, len(events), BATCH_SIZE):
@@ -110,12 +118,14 @@ def sync(events: List[Event]) -> None:
                     eventId=existing_events[event.source_id],
                     body=calendar_event
                 ))
+                updated_count += 1
             else:
                 # Create new event
                 batch.add(service.events().insert(
                     calendarId=CALENDAR_ID,
                     body=calendar_event
                 ))
+                created_count += 1
         
         # Execute batch operations
         try:
@@ -123,4 +133,11 @@ def sync(events: List[Event]) -> None:
             time.sleep(0.1)  # Small delay between batches
         except Exception as e:
             print(f"Error syncing batch of events to calendar: {e}")
-            continue  # Continue with next batch even if this one fails 
+            error_count += 1
+            continue  # Continue with next batch even if this one fails
+            
+    print(f"\nCalendar sync complete:")
+    print(f"- Updated: {updated_count} events")
+    print(f"- Created: {created_count} events")
+    if error_count > 0:
+        print(f"- Errors: {error_count}") 
