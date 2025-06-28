@@ -4,11 +4,33 @@ import unicodedata
 import re
 from ..models import Event, EventSource
 from ..utils.http import fetch_csv
+import requests
+import os
 
 URL = (
     "https://donnees.montreal.ca/dataset/evenements-publics/"
     "resource/6decf611-6f11-4f34-bb36-324d804c9bad/download/evenements.csv"
 )
+
+def translate_text(text: str, target_lang: str = 'en') -> str:
+    """
+    Translate text using Google Cloud Translation API.
+    Returns the original text if translation fails.
+    """
+    try:
+        url = "https://translation.googleapis.com/language/translate/v2"
+        params = {
+            'q': text,
+            'target': target_lang,
+            'source': 'fr',
+            'key': os.getenv('GOOGLE_TRANSLATE_KEY')
+        }
+        response = requests.post(url, params=params)
+        if response.status_code == 200:
+            return response.json()['data']['translations'][0]['translatedText']
+    except Exception as e:
+        print(f"Translation error: {e}")
+    return text
 
 def fix_encoding(text: str) -> str:
     if not isinstance(text, str):
@@ -61,12 +83,22 @@ def get_city_events() -> List[Event]:
                     continue
                     
                 # Parse time from description if available
-                description = fix_encoding(r["description"])
-                start_dt, end_dt = parse_time_from_description(description, start)
+                description_fr = fix_encoding(r["description"])
+                title_fr = fix_encoding(r["titre"])
+                
+                # Translate title and description to English
+                title_en = translate_text(title_fr)
+                description_en = translate_text(description_fr)
+                
+                # Combine French and English versions
+                title = f"{title_fr} / {title_en}" if title_en != title_fr else title_fr
+                description = f"🇫🇷 {description_fr}\n\n🇬🇧 {description_en}" if description_en != description_fr else description_fr
+                
+                start_dt, end_dt = parse_time_from_description(description_fr, start)
                 
                 out.append(
                     Event(
-                        title       = fix_encoding(r["titre"]),
+                        title       = title,
                         description = description,
                         url         = r["url_fiche"],
                         start_dt    = start_dt,

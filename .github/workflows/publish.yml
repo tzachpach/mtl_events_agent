@@ -37,7 +37,7 @@ jobs:
           echo "Service account file exists:"
           test -f "$GOOGLE_APPLICATION_CREDENTIALS" && echo "Yes" || echo "No"
           echo "Environment variables set:"
-          env | grep -E "GCAL_ID|GOOGLE_APPLICATION|REDDIT_"
+          env | grep -E "GCAL_ID|GOOGLE_APPLICATION|REDDIT_|GOOGLE_TRANSLATE"
           
       - name: Run event aggregator
         env:
@@ -48,6 +48,7 @@ jobs:
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          GOOGLE_TRANSLATE_KEY: ${{ secrets.GOOGLE_TRANSLATE_KEY }}
         run: |
           echo "Starting event aggregator..."
           echo "Using calendar ID: $GCAL_ID"
