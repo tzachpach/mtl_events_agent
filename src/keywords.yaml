@@ -1,17 +1,42 @@
 # Keyword weights for event ranking (0.0 to 1.0)
 # Higher weights increase the likelihood of an event being selected
-improv: 1.0
-free: 0.8
-pay-what-you-can: 0.8
-spoken-word: 0.6
-trail: 0.4
-concert: 0.7
-festival: 0.7
+
+# Music events (highest priority)
+music: 1.0
+concert: 1.0
+jazz: 1.0
+band: 1.0
+dj: 1.0
+orchestra: 1.0
+symphony: 1.0
+festival: 0.9
+
+# Food events (second priority)
+food: 0.9
+cuisine: 0.9
+gastronomy: 0.9
+restaurant: 0.9
+culinary: 0.9
+tasting: 0.9
+
+# Fringe performance arts (third priority)
+improv: 0.8
+theatre: 0.8
+storytelling: 0.8
+performance: 0.8
+spoken-word: 0.8
+comedy: 0.8
+experimental: 0.8
+fringe: 0.8
+
+# Other arts and culture
+art: 0.6
 exhibition: 0.6
-workshop: 0.5
-food: 0.6
-art: 0.7
-music: 0.7
-theatre: 0.7
+gallery: 0.6
+museum: 0.6
 dance: 0.6
-comedy: 0.7 
+
+# General event attributes
+free: 0.5
+pay-what-you-can: 0.5
+workshop: 0.4 
